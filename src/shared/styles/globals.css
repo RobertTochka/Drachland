@@ -1278,6 +1278,61 @@ body {
   font-weight: 900;
   color: #ffd4a5;
 }
+.credit-repay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 0;
+  color: #f1e4dc;
+  font-size: 12px;
+  font-weight: 800;
+}
+.credit-repay__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 190px;
+  height: 46px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 173, 98, 0.3);
+  border-radius: 12px;
+  background: rgba(10, 13, 21, 0.48);
+}
+.credit-repay__field input {
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.credit-repay__field input::-webkit-inner-spin-button,
+.credit-repay__field input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.credit-repay__field input[type='number'] {
+  -moz-appearance: textfield;
+}
+.credit-repay__field > span {
+  flex: none;
+  color: #9fa9b4;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.credit-repay__hint {
+  margin-top: 7px;
+  color: #a9cbd3;
+  font-size: 10px;
+  line-height: 1.5;
+}
 .notice {
   display: flex;
   gap: 10px;

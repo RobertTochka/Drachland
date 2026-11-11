@@ -21,21 +21,41 @@ import { DialogShell } from './DialogShell'
 
 type Props = {
   preview: RoundPreview
-  onSettle: (choice: RoundAction) => RoundReport
+  onSettle: (choice: RoundAction, repaymentAmount?: number) => RoundReport
   onClose: () => void
 }
 
 export function RoundModal({ preview, onSettle, onClose }: Props) {
   const [report, setReport] = useState<RoundReport | null>(null)
   const [pending, setPending] = useState(false)
-  const commit = (choice: RoundAction) => {
-    if (pending || report) return
-    setPending(true)
-    const completed = onSettle(choice)
-    setReport(completed)
-  }
+  const [repaymentInput, setRepaymentInput] = useState('0')
+
+  const due = preview.loan?.due ?? 0
+  const enteredAmount =
+    repaymentInput.trim() === '' ? 0 : Number(repaymentInput)
+  const repaymentAmount = Number.isFinite(enteredAmount)
+    ? Math.min(due, Math.max(0, Math.floor(enteredAmount)))
+    : 0
+  const remainingBeforeInterest = Math.max(0, due - repaymentAmount)
   const isDefaulted = Boolean(preview.loan?.defaulted)
   const lastCreditRound = Boolean(preview.loan?.round === 3 && !isDefaulted)
+
+  const commit = (choice: RoundAction, amount?: number) => {
+    if (pending || report) return
+    setPending(true)
+    const completed = onSettle(choice, amount)
+    setReport(completed)
+  }
+
+  const updateRepayment = (value: string) => {
+    if (value === '') {
+      setRepaymentInput('')
+      return
+    }
+    const numeric = Number(value)
+    if (!Number.isFinite(numeric)) return
+    setRepaymentInput(String(Math.min(due, Math.max(0, Math.floor(numeric)))))
+  }
 
   return (
     <DialogShell
@@ -103,7 +123,7 @@ export function RoundModal({ preview, onSettle, onClose }: Props) {
             <span>
               <RotateCcw size={15} /> Перевернутых компаний
             </span>
-            <b>{preview.flippedCount} → 0</b>
+            <b>{preview.flippedCount}</b>
           </div>
         )}
       </div>
@@ -138,8 +158,19 @@ export function RoundModal({ preview, onSettle, onClose }: Props) {
             <div className='notice notice--info'>
               <Coins size={17} />
               <div>
-                Кредит перенесён на следующий круг. Новый долг:{' '}
-                <b>{formatGameNumber(report.nextDebt)}</b>.
+                {report.creditPaid > 0
+                  ? `Частично погашено ${formatGameNumber(report.creditPaid)}. `
+                  : 'Кредит перенесён на следующий круг. '}
+                {preview.loan?.defaulted ? (
+                  <>
+                    Остаток просроченного долга:{' '}
+                    <b>{formatGameNumber(report.nextDebt)}</b>.
+                  </>
+                ) : (
+                  <>
+                    Остаток долга: <b>{formatGameNumber(report.nextDebt)}</b>.
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -162,29 +193,65 @@ export function RoundModal({ preview, onSettle, onClose }: Props) {
               <div className='credit-decision__due'>
                 К погашению <b>{formatGameNumber(preview.loan.due)}</b>
               </div>
+
+              <label
+                className='credit-repay'
+                htmlFor='round-repayment'
+              >
+                <span>Погасить</span>
+                <span className='credit-repay__field'>
+                  <input
+                    id='round-repayment'
+                    type='number'
+                    inputMode='numeric'
+                    min={0}
+                    max={preview.loan.due}
+                    step={1}
+                    value={repaymentInput}
+                    disabled={pending}
+                    onChange={event => updateRepayment(event.target.value)}
+                    onBlur={() => {
+                      if (repaymentInput.trim() === '') setRepaymentInput('0')
+                    }}
+                    aria-label='Сумма частичного погашения кредита'
+                  />
+                  <span>из {formatGameNumber(preview.loan.due)}</span>
+                </span>
+              </label>
+
+              {repaymentAmount > 0 && repaymentAmount < due && (
+                <p className='credit-repay__hint'>
+                  После платежа останется{' '}
+                  {formatGameNumber(remainingBeforeInterest)}
+                  {isDefaulted ? ' просроченного долга.' : ' долга.'}
+                </p>
+              )}
+
               {lastCreditRound && (
-                <div className='notice notice--danger'>
+                <div className='notice notice--danger mt-3'>
                   <CircleAlert size={18} />
                   <div>
-                    Последний круг! Отказ от погашения добавит{' '}
-                    {formatGameNumber(preview.extensionFee)} и вызовет продажу
-                    компаний с отправкой в тюрьму.
+                    Последний круг! Если после платежа останется долг, компании
+                    будут проданы для его покрытия, а игрок отправится в тюрьму.
                   </div>
                 </div>
               )}
               {isDefaulted && (
-                <div className='notice notice--danger'>
+                <div className='notice notice--danger mt-3'>
                   <ShieldAlert size={18} />
-                  <div>Кредит уже просрочен, перенести его нельзя.</div>
+                  <div>
+                    Кредит уже просрочен. Частичный платёж уменьшит долг, но
+                    продлить его нельзя.
+                  </div>
                 </div>
               )}
               <button
                 type='button'
                 className='modal-primary mt-3'
-                disabled={pending}
-                onClick={() => commit('repay')}
+                disabled={pending || repaymentAmount < 1}
+                onClick={() => commit('repay', repaymentAmount)}
               >
-                Да, погасить {formatGameNumber(preview.loan.due)}
+                Погасить {formatGameNumber(repaymentAmount)}
               </button>
               {!isDefaulted && (
                 <button
@@ -198,13 +265,6 @@ export function RoundModal({ preview, onSettle, onClose }: Props) {
                     : `Нет, перенести (долг +${formatGameNumber(preview.extensionFee)})`}
                 </button>
               )}
-              <button
-                type='button'
-                className='modal-text mt-2'
-                onClick={onClose}
-              >
-                Вернуться, не завершая круг
-              </button>
             </div>
           ) : (
             <>
